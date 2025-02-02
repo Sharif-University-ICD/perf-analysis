@@ -34,8 +34,8 @@ project(IC C CXX ASM)
 pico_sdk_init()
 
 
-add_subdirectory(aes)
-include_directories(./aes)
+add_subdirectory(../aes aes)
+include_directories(../aes)
 
 # Add executable. Default name is the project name, version 0.1
 
