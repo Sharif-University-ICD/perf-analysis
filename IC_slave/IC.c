@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "pico/stdlib.h"
+#include "pico/i2c_slave.h"
 #include "hardware/spi.h"
 #include "hardware/i2c.h"
 #include "hardware/uart.h"
@@ -14,8 +15,8 @@
 #define SPI 0
 #define WIFI 0
 #define CAN 0
-#define UART 1
-#define I2C 0
+#define UART 0
+#define I2C 1
 #define ONE 0
 
 // SPI Defines
@@ -27,9 +28,9 @@
 
 // I2C defines
 #define I2C_PORT i2c0
-#define I2C_SDA 8
-#define I2C_SCL 9
-#define I2C_SLAVE_ADDRESS 0x17
+#define I2C_SDA 16
+#define I2C_SCL 17
+#define I2C_SLAVE_ADDRESS 0x22
 #define I2C_BAUDRATE 100000 // 100 kHz
 
 // UART defines
@@ -158,6 +159,39 @@ void uart_slave() {
 
 }
 
+static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
+    static int i = 0;
+    static uint8_t in_buf[BUF_LEN];
+
+    switch (event) {
+        case I2C_SLAVE_RECEIVE: // master has written some data
+            in_buf[i++] = i2c_read_byte_raw(i2c);
+            printf("I2C slave says: read page from the SDA line:\n");
+            break;
+        case I2C_SLAVE_REQUEST: // master is requesting data
+            break;
+        case I2C_SLAVE_FINISH: // master has signalled Stop / Restart
+            printf("I2C slave says: read page from the SDA line:\n");
+            phex(in_buf);
+            i = 0;
+            break;
+        default:
+            break;
+    }
+}
+
+static void i2c_slave() {
+    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SDA);
+
+    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SCL);
+
+    i2c_init(I2C_PORT, I2C_BAUDRATE);
+    // configure I2C0 for slave mode
+    i2c_slave_init(I2C_PORT, I2C_SLAVE_ADDRESS, &i2c_slave_handler);
+}
+
 int main()
 {
 
@@ -167,30 +201,6 @@ int main()
 
     AES_init_ctx_iv(&ctx, key, iv);
 
-    // I2C Initialisation. Using it at 400Khz.
-    // i2c_init(I2C_PORT, 400*1000);
-    
-    // gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
-    // gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
-    // gpio_pull_up(I2C_SDA);
-    // gpio_pull_up(I2C_SCL);
-    // // For more examples of I2C use see https://github.com/raspberrypi/pico-examples/tree/master/i2c
-
-    // // Set up our UART
-    // uart_init(UART_ID, BAUD_RATE);
-    // // Set the TX and RX pins by using the function select on the GPIO
-    // // Set datasheet for more information on function select
-    // gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
-    // gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-    
-    // Use some the various UART functions to send out data
-    // In a default system, printf will also output via the default UART
-    
-    // Send out a string, with CR/LF conversions
-    // uart_puts(UART_ID, " Hello, UART!\n");
-    
-    // For more examples of UART use see https://github.com/raspberrypi/pico-examples/tree/master/uart
-
     printf("Hello, world!\n");
     while (true) {
         sleep_ms(1000);
@@ -198,7 +208,12 @@ int main()
             spi_slave();
         } else if (UART == 1){
             uart_slave();
+        } else if (I2C == 1){
+            i2c_slave();
+            while (true)
+            {
+            }
+            
         }
-        
     }
 }

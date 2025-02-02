@@ -62,6 +62,7 @@ target_link_libraries(IC
         hardware_spi
         hardware_i2c
         tiny-aes
+        pico_i2c_slave
         )
 
 pico_add_extra_outputs(IC)

@@ -14,8 +14,8 @@
 #define SPI 0
 #define WIFI 0
 #define CAN 0
-#define UART 1
-#define I2C 0
+#define UART 0
+#define I2C 1
 #define ONE 0
 
 // SPI Defines
@@ -27,9 +27,9 @@
 
 // I2C defines
 #define I2C_PORT i2c0
-#define I2C_SDA 8
-#define I2C_SCL 9
-#define I2C_SLAVE_ADDRESS 0x17
+#define I2C_SDA 16
+#define I2C_SCL 17
+#define I2C_SLAVE_ADDRESS 0x22
 #define I2C_BAUDRATE 100000 // 100 kHz
 
 // UART defines
@@ -68,7 +68,7 @@ static void phex(uint8_t* str)
     printf("\n");
 }
 
-int spi_master() {
+void spi_master() {
     printf("SPI master example\n");
 
     // SPI initialisation. This example will use SPI at 1MHz.
@@ -87,8 +87,7 @@ int spi_master() {
     }
 }
 
-
-int uart_master() {
+void uart_master() {
     uart_init(UART_ID, BAUD_RATE);
 
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
@@ -103,14 +102,39 @@ int uart_master() {
     // Turn off FIFO's - we want to do this character by character
     uart_set_fifo_enabled(UART_ID, false);
 
-    uart_puts(UART_ID, "\nHello, uart interrupts\n");
-
     printf("UART master says: The buffer will be written to TX endlessly:\n");
 
     while (1) {
         uart_write_blocking(UART_ID, plain, BUF_LEN);
         sleep_ms(10 * 1000);
     }
+}
+
+void i2c_master() {
+    sleep_ms(7000);
+    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SDA);
+
+    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SCL);
+
+    uint real_baud = i2c_init(I2C_PORT, I2C_BAUDRATE);
+
+    printf("Requested baud rate was %d actual rate is %d\n", I2C_BAUDRATE, real_baud);
+
+
+    uint8_t data = 22;
+
+    for (uint8_t mem_address = 0;; mem_address = (mem_address + 32) % 256) {
+        printf("Starting to write\n");
+        int count = i2c_write_blocking(I2C_PORT, I2C_SLAVE_ADDRESS, plain, BUF_LEN, true);
+        if (count < 0) {
+            printf("Couldn't write to slave, please check your wiring!\n");
+        }else{
+            printf("Wrote %d byres\n", count);
+        }
+        sleep_ms(10 * 1000);
+    }   
 }
 
 int main()
@@ -127,16 +151,6 @@ int main()
     AES_CBC_encrypt_buffer(&ctx, plain, 64);
     printf("Ciphertext data is: ");
     phex(plain);
-
-
-    // I2C Initialisation. Using it at 400Khz.
-    // i2c_init(I2C_PORT, 400*1000);
-    
-    // gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
-    // gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
-    // gpio_pull_up(I2C_SDA);
-    // gpio_pull_up(I2C_SCL);
-    // // For more examples of I2C use see https://github.com/raspberrypi/pico-examples/tree/master/i2c
     
     printf("Hello, world!\n");
     while (true) {
@@ -144,10 +158,12 @@ int main()
         if(SPI == 1){
             spi_master();
         }
-        else if (UART == 1)
-        {
+        else if (UART == 1){
             uart_master();
+        } else if (I2C == 1){
+            i2c_master();
         }
+        
         
     }
 }
