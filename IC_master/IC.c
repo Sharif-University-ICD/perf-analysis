@@ -15,16 +15,16 @@
 #define SPI 0
 #define WIFI 0
 #define CAN 0
-#define UART 1
-#define I2C 0
+#define UART 0
+#define I2C 1
 #define ONE 0
 
 // SPI Defines
 #define SPI_PORT spi0
-#define PIN_MISO 0
-#define PIN_CS   1
-#define PIN_SCK  2
-#define PIN_MOSI 3
+#define PIN_MISO 16
+#define PIN_CS   17
+#define PIN_SCK  18
+#define PIN_MOSI 19
 
 // I2C defines
 #define I2C_PORT i2c0
@@ -158,7 +158,7 @@ int main()
 
     scanf("%16s", iv);
     printf("\nrecieved iv: %s\n", iv);
-    
+
     AES_init_ctx_iv(&ctx, key, iv);
 
     memset(plain, 0, 64);

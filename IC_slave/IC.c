@@ -15,16 +15,16 @@
 #define SPI 0
 #define WIFI 0
 #define CAN 0
-#define UART 1
-#define I2C 0
+#define UART 0
+#define I2C 1
 #define ONE 0
 
 // SPI Defines
 #define SPI_PORT spi0
-#define PIN_MISO 0
-#define PIN_CS   1
-#define PIN_SCK  2
-#define PIN_MOSI 3
+#define PIN_MISO 16
+#define PIN_CS   17
+#define PIN_SCK  18
+#define PIN_MOSI 19
 
 // I2C defines
 #define I2C_PORT i2c0
@@ -77,16 +77,14 @@ int spi_slave() {
     printf("Waiting for data on SPI\n");
 
     while(true) {
-        // Write the output buffer to MISO, and at the same time read from MOSI.
         spi_read_blocking(SPI_PORT, 0 ,in_buf, BUF_LEN);
-
-        // Write to stdio whatever came in on the MOSI line.
-        printf("SPI slave says: read from the MOSI line:\n");
-        phex(in_buf, 32);
 
         AES_CBC_decrypt_buffer(&ctx, in_buf, 64);
         
         printf("\ndecrypted data is: %s\n", in_buf);
+
+        AES_ctx_set_iv(&ctx, iv);
+        memset(in_buf, 0, 64);
     }
 }
 
@@ -99,16 +97,10 @@ void on_uart_rx() {
         in_buf[i++] = ch;
         if (i == BUF_LEN) {
             i = 0;
-            printf("UART says: read page from the RX line:\n");
-            phex(in_buf, 32);
-            // phex(ctx.Iv, 8);
-            // phex(ctx.RoundKey, 120);
             AES_CBC_decrypt_buffer(&ctx, in_buf, 64);
-            // phex(ctx.Iv, 8);
-            // phex(ctx.RoundKey, 120);
-            AES_ctx_set_iv(&ctx, iv);
-            printf("\ndecrypted data is: %s\n", in_buf);
+            printf("decrypted data is: %s\n\n", in_buf);
 
+            AES_ctx_set_iv(&ctx, iv);
             memset(in_buf, 0, 64);
         }
     }
@@ -193,8 +185,6 @@ int main()
 
     AES_init_ctx_iv(&ctx, key, iv);
     
-    phex(iv, 8);
-
     if(SPI == 1){
         spi_slave();
     } else if (UART == 1){
