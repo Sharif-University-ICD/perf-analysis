@@ -144,13 +144,15 @@ static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
     switch (event) {
         case I2C_SLAVE_RECEIVE: // master has written some data
             in_buf[i++] = i2c_read_byte_raw(i2c);
-            printf("I2C slave says: read page from the SDA line:\n");
             break;
         case I2C_SLAVE_REQUEST: // master is requesting data
             break;
         case I2C_SLAVE_FINISH: // master has signalled Stop / Restart
-            printf("I2C slave says: read page from the SDA line:\n");
-            phex(in_buf, 32);
+            AES_CBC_decrypt_buffer(&ctx, in_buf, 64);
+            printf("decrypted data is: %s\n\n", in_buf);
+
+            AES_ctx_set_iv(&ctx, iv);
+            memset(in_buf, 0, 64);
             i = 0;
             break;
         default:

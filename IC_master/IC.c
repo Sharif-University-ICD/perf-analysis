@@ -117,7 +117,6 @@ void uart_master() {
 }
 
 void i2c_master() {
-    sleep_ms(7000);
     gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
     gpio_pull_up(I2C_SDA);
 
@@ -132,14 +131,16 @@ void i2c_master() {
     uint8_t data = 22;
 
     for (uint8_t mem_address = 0;; mem_address = (mem_address + 32) % 256) {
-        printf("Starting to write\n");
+        uint64_t start = time_us_64();
         int count = i2c_write_blocking(I2C_PORT, I2C_SLAVE_ADDRESS, plain, BUF_LEN, true);
         if (count < 0) {
             printf("Couldn't write to slave, please check your wiring!\n");
         }else{
             printf("Wrote %d byres\n", count);
         }
-        sleep_ms(10 * 1000);
+        uint64_t end = time_us_64();
+        printf("\ntime took to write: %lld\n", end - start);
+        sleep_ms(5 * 1000);
     }   
 }
 
