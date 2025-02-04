@@ -150,7 +150,6 @@ int main()
 
     struct AES_ctx ctx;
 
-    AES_init_ctx_iv(&ctx, key, iv);
 
 
     sleep_ms(5000);
@@ -159,6 +158,8 @@ int main()
 
     scanf("%16s", iv);
     printf("\nrecieved iv: %s\n", iv);
+    
+    AES_init_ctx_iv(&ctx, key, iv);
 
     memset(plain, 0, 64);
     

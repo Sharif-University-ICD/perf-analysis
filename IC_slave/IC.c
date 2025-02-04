@@ -101,9 +101,12 @@ void on_uart_rx() {
             i = 0;
             printf("UART says: read page from the RX line:\n");
             phex(in_buf, 32);
-
+            // phex(ctx.Iv, 8);
+            // phex(ctx.RoundKey, 120);
             AES_CBC_decrypt_buffer(&ctx, in_buf, 64);
-
+            // phex(ctx.Iv, 8);
+            // phex(ctx.RoundKey, 120);
+            AES_ctx_set_iv(&ctx, iv);
             printf("\ndecrypted data is: %s\n", in_buf);
 
             memset(in_buf, 0, 64);
@@ -182,14 +185,14 @@ int main()
 {
     stdio_init_all();
 
-    AES_init_ctx_iv(&ctx, key, iv);
-
     sleep_ms(5000);
     printf("Slave!\n");
     printf("insert IV (16 byte):");
     scanf("%16s", iv);
     printf("\nrecieved iv: %s\n", iv);
 
+    AES_init_ctx_iv(&ctx, key, iv);
+    
     phex(iv, 8);
 
     if(SPI == 1){
