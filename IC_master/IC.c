@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
@@ -14,16 +15,16 @@
 #define SPI 0
 #define WIFI 0
 #define CAN 0
-#define UART 0
-#define I2C 1
+#define UART 1
+#define I2C 0
 #define ONE 0
 
 // SPI Defines
 #define SPI_PORT spi0
-#define PIN_MISO 16
-#define PIN_CS   17
-#define PIN_SCK  18
-#define PIN_MOSI 19
+#define PIN_MISO 0
+#define PIN_CS   1
+#define PIN_SCK  2
+#define PIN_MOSI 3
 
 // I2C defines
 #define I2C_PORT i2c0
@@ -34,7 +35,7 @@
 
 // UART defines
 #define UART_ID uart0
-#define BAUD_RATE 115200
+#define BAUD_RATE 100000
 #define DATA_BITS 8
 #define STOP_BITS 1
 #define PARITY    UART_PARITY_NONE
@@ -50,11 +51,8 @@ uint8_t cipher[]  = { 0xf5, 0x8c, 0x4c, 0x04, 0xd6, 0xe5, 0xf1, 0xba, 0x77, 0x9e
                     0x9c, 0xfc, 0x4e, 0x96, 0x7e, 0xdb, 0x80, 0x8d, 0x67, 0x9f, 0x77, 0x7b, 0xc6, 0x70, 0x2c, 0x7d,
                     0x39, 0xf2, 0x33, 0x69, 0xa9, 0xd9, 0xba, 0xcf, 0xa5, 0x30, 0xe2, 0x63, 0x04, 0x23, 0x14, 0x61,
                     0xb2, 0xeb, 0x05, 0xe2, 0xc3, 0x9b, 0xe9, 0xfc, 0xda, 0x6c, 0x19, 0x07, 0x8c, 0x6a, 0x9d, 0x1b };
-uint8_t iv[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
-uint8_t plain[] = { 0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
-                    0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51,
-                    0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11, 0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef,
-                    0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17, 0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10 };
+uint8_t iv[16];
+uint8_t plain[64];
 
 
 // prints string as hex
@@ -72,7 +70,7 @@ void spi_master() {
     printf("SPI master example\n");
 
     // SPI initialisation. This example will use SPI at 1MHz.
-    spi_init(SPI_PORT, 1000*1000);
+    spi_init(SPI_PORT, 100*1000);
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
     gpio_set_function(PIN_CS,   GPIO_FUNC_SPI);
     gpio_set_function(PIN_SCK,  GPIO_FUNC_SPI);
@@ -82,12 +80,17 @@ void spi_master() {
     printf("SPI master says: The buffer will be written to MOSI endlessly:\n");
 
     while (1) {
+        uint64_t start = time_us_64();
         spi_write_blocking(SPI_PORT, plain, BUF_LEN);
-        sleep_ms(10 * 1000);
+        uint64_t end = time_us_64();
+        printf("\ntime took to write: %lld\n", end - start);
+        sleep_ms(5 * 1000);
     }
 }
 
 void uart_master() {
+    printf("UART master example\n");
+
     uart_init(UART_ID, BAUD_RATE);
 
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
@@ -105,8 +108,11 @@ void uart_master() {
     printf("UART master says: The buffer will be written to TX endlessly:\n");
 
     while (1) {
+        uint64_t start = time_us_64();
         uart_write_blocking(UART_ID, plain, BUF_LEN);
-        sleep_ms(10 * 1000);
+        uint64_t end = time_us_64();
+        printf("\ntime took to write: %lld\n", end - start);
+        sleep_ms(5 * 1000);
     }
 }
 
@@ -146,24 +152,36 @@ int main()
 
     AES_init_ctx_iv(&ctx, key, iv);
 
-    printf("Plain text data is: ");
+
+    sleep_ms(5000);
+    printf("Master!\n");
+    printf("insert IV (16 byte):");
+
+    scanf("%16s", iv);
+    printf("\nrecieved iv: %s\n", iv);
+
+    memset(plain, 0, 64);
+    
+    printf("insert plain text (256 byte):");
+    scanf("%256s", plain);
+
+    printf("\nPlain text data is: ");
     phex(plain);
     AES_CBC_encrypt_buffer(&ctx, plain, 64);
     printf("Ciphertext data is: ");
     phex(plain);
     
-    printf("Hello, world!\n");
-    while (true) {
-        sleep_ms(1000);
-        if(SPI == 1){
-            spi_master();
-        }
-        else if (UART == 1){
-            uart_master();
-        } else if (I2C == 1){
-            i2c_master();
-        }
-        
-        
+    if(SPI == 1){
+        spi_master();
     }
+    else if (UART == 1){
+        uart_master();
+    } else if (I2C == 1){
+        i2c_master();
+    }
+
+    while (1)
+        tight_loop_contents();
+    
+        
 }
