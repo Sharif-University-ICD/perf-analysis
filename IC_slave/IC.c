@@ -12,12 +12,14 @@
 
 #include "aes.h"
 
+#define BUF_LEN 64
+
 #define SPI 0
 #define WIFI 0
 #define CAN 0
 #define UART 0
-#define I2C 1
-#define ONE 0
+#define I2C 0
+#define ONE 1
 
 // SPI Defines
 #define SPI_PORT spi0
@@ -43,7 +45,13 @@
 #define UART_TX_PIN 12
 #define UART_RX_PIN 13
 
-#define BUF_LEN 64
+// One Wire defines
+#define DATA_PIN 15
+volatile bool messageReceived = false;
+volatile char currentByte = 0;
+volatile int bitCount = 0;
+volatile int byteIndex = 0;
+uint8_t onewire_in_buf[BUF_LEN];
 
 struct AES_ctx ctx;
 
@@ -175,6 +183,52 @@ static void i2c_slave() {
 
 }
 
+static void onewire_handler(uint gpio, uint32_t events){
+    busy_wait_us(30);
+    bool bitVal = gpio_get(DATA_PIN);
+    currentByte = (currentByte << 1) | bitVal; // Build up the byte from the incoming bits.
+    bitCount++;
+    // printf("%d\n", bitCount);
+    // Once 8 bits have been received, store the byte in the buffer.
+    if (bitCount % 8 == 0)
+    {
+        if (byteIndex < BUF_LEN)
+            onewire_in_buf[byteIndex++] = currentByte;
+        currentByte = 0;
+    }
+
+    // When BUF_LEN bytes have been received, flag that the message is complete.
+    if (byteIndex >= BUF_LEN){
+        messageReceived = true;
+        gpio_set_irq_enabled_with_callback(DATA_PIN, GPIO_IRQ_EDGE_FALL, false, &onewire_handler);
+    }
+}
+
+static void onewire_slave(){
+    printf("Waiting for data on One Wire\n");
+
+    gpio_init(DATA_PIN);
+    gpio_set_dir(DATA_PIN, GPIO_IN);
+
+    gpio_set_irq_enabled_with_callback(DATA_PIN, GPIO_IRQ_EDGE_FALL, true, &onewire_handler);
+
+    while(true){
+        if(messageReceived){
+            messageReceived = false;
+            AES_CBC_decrypt_buffer(&ctx, onewire_in_buf, BUF_LEN);
+            printf("Received message: ");
+            phex(onewire_in_buf, 32);
+            
+            printf("%s\n", onewire_in_buf);
+
+            AES_ctx_set_iv(&ctx, iv);
+            memset(onewire_in_buf, 0, BUF_LEN);
+            gpio_set_irq_enabled_with_callback(DATA_PIN, GPIO_IRQ_EDGE_FALL, true, &onewire_handler);
+
+        }
+    }
+}
+
 int main()
 {
     stdio_init_all();
@@ -193,6 +247,8 @@ int main()
         uart_slave();
     } else if (I2C == 1){
         i2c_slave();
+    } else if (ONE == 1){
+        onewire_slave();
     }
 
     while (1)

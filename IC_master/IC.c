@@ -16,8 +16,8 @@
 #define WIFI 0
 #define CAN 0
 #define UART 0
-#define I2C 1
-#define ONE 0
+#define I2C 0
+#define ONE 1
 
 // SPI Defines
 #define SPI_PORT spi0
@@ -42,6 +42,9 @@
 
 #define UART_TX_PIN 12
 #define UART_RX_PIN 13
+
+// One Wire defines
+#define DATA_PIN 15
 
 #define BUF_LEN 64
 
@@ -127,9 +130,6 @@ void i2c_master() {
 
     printf("Requested baud rate was %d actual rate is %d\n", I2C_BAUDRATE, real_baud);
 
-
-    uint8_t data = 22;
-
     for (uint8_t mem_address = 0;; mem_address = (mem_address + 32) % 256) {
         uint64_t start = time_us_64();
         int count = i2c_write_blocking(I2C_PORT, I2C_SLAVE_ADDRESS, plain, BUF_LEN, true);
@@ -144,14 +144,43 @@ void i2c_master() {
     }   
 }
 
+void onewire_master(){
+    gpio_init(DATA_PIN);
+    gpio_set_dir(DATA_PIN, GPIO_OUT);
+
+    gpio_put(DATA_PIN, true);
+
+    // for (uint8_t mem_address = 0;; mem_address = (mem_address + 32) % 256) {
+        uint64_t start = time_us_64();
+        for (int i = 0; i < BUF_LEN; i++)
+            for (int j = 7; j >= 0; j--) {
+                char data = (char)plain[i];
+                char bitVal = (data >> j) & 0x01;
+                if (bitVal == 0) {
+                    gpio_put(DATA_PIN, false);
+                    sleep_us(60);
+                    gpio_put(DATA_PIN, true);
+                    sleep_us(10);
+                }
+                else {
+                    gpio_put(DATA_PIN, false);
+                    sleep_us(10);
+                    gpio_put(DATA_PIN, true);
+                    sleep_us(60);
+                }
+            }
+        uint64_t end = time_us_64();
+        printf("\ntime took to write: %lld\n", end - start);
+        // sleep_ms(5 * 1000);
+    // }   
+}
+
 int main()
 {
 
     stdio_init_all();
 
     struct AES_ctx ctx;
-
-
 
     sleep_ms(5000);
     printf("Master!\n");
@@ -180,6 +209,8 @@ int main()
         uart_master();
     } else if (I2C == 1){
         i2c_master();
+    } else if(ONE == 1){
+        onewire_master();
     }
 
     while (1)
