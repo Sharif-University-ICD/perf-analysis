@@ -188,16 +188,11 @@ static void onewire_handler(uint gpio, uint32_t events){
     bool bitVal = gpio_get(DATA_PIN);
     currentByte = (currentByte << 1) | bitVal; // Build up the byte from the incoming bits.
     bitCount++;
-    // printf("%d\n", bitCount);
-    // Once 8 bits have been received, store the byte in the buffer.
-    if (bitCount % 8 == 0)
-    {
+    if (bitCount % 8 == 0){
         if (byteIndex < BUF_LEN)
             onewire_in_buf[byteIndex++] = currentByte;
         currentByte = 0;
     }
-
-    // When BUF_LEN bytes have been received, flag that the message is complete.
     if (byteIndex >= BUF_LEN){
         messageReceived = true;
         gpio_set_irq_enabled_with_callback(DATA_PIN, GPIO_IRQ_EDGE_FALL, false, &onewire_handler);
