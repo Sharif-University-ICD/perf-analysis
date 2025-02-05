@@ -206,25 +206,19 @@ static void onewire_handler(uint gpio, uint32_t events){
 
 static void onewire_slave(){
     printf("Waiting for data on One Wire\n");
-
     gpio_init(DATA_PIN);
     gpio_set_dir(DATA_PIN, GPIO_IN);
-
     gpio_set_irq_enabled_with_callback(DATA_PIN, GPIO_IRQ_EDGE_FALL, true, &onewire_handler);
-
     while(true){
         if(messageReceived){
             messageReceived = false;
             AES_CBC_decrypt_buffer(&ctx, onewire_in_buf, BUF_LEN);
             printf("Received message: ");
             phex(onewire_in_buf, 32);
-            
             printf("%s\n", onewire_in_buf);
-
             AES_ctx_set_iv(&ctx, iv);
             memset(onewire_in_buf, 0, BUF_LEN);
             gpio_set_irq_enabled_with_callback(DATA_PIN, GPIO_IRQ_EDGE_FALL, true, &onewire_handler);
-
         }
     }
 }
